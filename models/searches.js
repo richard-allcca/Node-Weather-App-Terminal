@@ -1,10 +1,13 @@
-const fs = require("fs");
-
-const axios = require("axios");
+const fs = require('fs');
+const path = require('path');
+const axios = require('axios');
 
 class Searches {
-  historial = [];
-  dbPath = "./db/database.json";
+  constructor({ dbPath = path.join(__dirname, '..', 'db', 'database.json') } = {}) {
+    this.historial = [];
+    this.dbPath = dbPath;
+    this.leerDb();
+  }
 
   get getHistorial() {
     return this.historial;
@@ -12,23 +15,17 @@ class Searches {
 
   get historialCapitalizado() {
     return this.historial.map((lugar) => {
-      let palabras = lugar.split(" ");
-      palabras = palabras.map((p) => p[0].toUpperCase() + p.substring(1));
+      const palabras = lugar.split(' ').map((palabra) => (
+        palabra ? palabra[0].toUpperCase() + palabra.substring(1) : palabra
+      ));
 
-      return palabras.join(" ");
+      return palabras.join(' ');
     });
-    // return this.historial.map((lugar) => {
-    //   let result = lugar.charAt(0).toUpperCase() + lugar.slice(1);
-    //   return result;
-    // });
   }
 
   get capitalizarPersonal() {
-    let newArr = [];
-    this.historial.forEach((el) => {
-      newArr.push(this.capitalizar(el));
-    });
-    return (this.historial = newArr);
+    this.historial = this.historial.map((lugar) => this.capitalizar(lugar));
+    return this.historial;
   }
 
   get paramsMapbox() {
@@ -46,22 +43,18 @@ class Searches {
     };
   }
 
-  constructor() {
-    // lee db si existe
-    this.leerDb();
-  }
-
-  // ========================
-  //  Petición https - ciudad
   async ciudad(nombre) {
+    if (!process.env.MAPBOX_KEY) {
+      throw new Error('Falta configurar MAPBOX_KEY en el archivo .env.');
+    }
+
     try {
       const instance = axios.create({
-        baseURL: `https://api.mapbox.com/geocoding/v5/mapbox.places/${nombre}.json`,
+        baseURL: `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(nombre.trim())}.json`,
         params: this.paramsMapbox,
       });
 
       const resp = await instance.get();
-      // console.log(resp.data.features);
       return resp.data.features.map((lugar) => ({
         id: lugar.id,
         nombre: lugar.place_name,
@@ -69,76 +62,83 @@ class Searches {
         lat: lugar.center[1],
       }));
     } catch (error) {
-      const err = {
-        status: `${error.response.status}`,
-        message: `${error.message}`,
-        messageFetch: `${error.response.data.message}`,
-        value: nombre,
-      };
-      // console.log(error.response.data.message);
-      console.log(err);
-      return [];
+      const detail = error.response?.data?.message || error.message;
+      throw new Error(`No se pudo buscar la ciudad: ${detail}`);
     }
   }
 
-  // ========================
-  // Petición http - clima
   async lugarClima(lat, lon) {
+    if (!process.env.OPENWEATHER_KEY) {
+      throw new Error('Falta configurar OPENWEATHER_KEY en el archivo .env.');
+    }
+
     try {
       const instance = axios.create({
-        baseURL: "https://api.openweathermap.org/data/2.5/weather",
+        baseURL: 'https://api.openweathermap.org/data/2.5/weather',
         params: { ...this.getParamsWeather, lat, lon },
       });
 
       const resp = await instance.get();
-      // return resp.data
       const { weather, main } = resp.data;
+      if (!weather?.[0] || !main) {
+        throw new Error('La respuesta del servicio meteorológico está incompleta.');
+      }
+
       const { temp_min, temp_max, temp } = main;
       return {
         desc: weather[0].description,
         min: temp_min,
         max: temp_max,
-        temp: temp,
+        temp,
       };
     } catch (error) {
-      console.log(error);
+      const detail = error.response?.data?.message || error.message;
+      throw new Error(`No se pudo consultar el clima: ${detail}`);
     }
   }
-  // ========================
-  // Historial
-  agregarHistorial(lugar = "") {
-    // Prevenir duplicados
-    if (this.historial.includes(lugar.toLocaleLowerCase())) return;
+  agregarHistorial(lugar = '') {
+    const normalizado = lugar.trim().toLocaleLowerCase();
+    if (!normalizado) return;
 
-    this.historial = this.historial.splice(0, 5);
-
-    // agregar historial
-    this.historial.unshift(lugar.toLocaleLowerCase());
+    this.historial = [
+      normalizado,
+      ...this.historial.filter((entrada) => entrada !== normalizado),
+    ].slice(0, 5);
   }
 
-  // ========================
-  //  DB
   guardarDb() {
-    const payload = {
-      historial: this.historial,
-    };
-
-    fs.writeFileSync(this.dbPath, JSON.stringify(payload));
+    fs.mkdirSync(path.dirname(this.dbPath), { recursive: true });
+    fs.writeFileSync(
+      this.dbPath,
+      JSON.stringify({ historial: this.historial }, null, 2),
+      'utf8',
+    );
   }
+
   leerDb() {
     if (!fs.existsSync(this.dbPath)) return;
 
-    // const historialDb = fs.readFileSync(this.dbPath, "utf8");
-    const historialDb = fs.readFileSync(this.dbPath, { encoding: "utf8" });
-    const data = JSON.parse(historialDb.toLocaleLowerCase());
-    this.historial = data.historial;
-  }
-  capitalizar(text) {
-    let texto = text.split(" ");
-    for (let i = 0; i < texto.length; i++) {
-      texto[i] = texto[i][0].toUpperCase() + texto[i].substring(1);
+    try {
+      const historialDb = fs.readFileSync(this.dbPath, 'utf8');
+      const data = JSON.parse(historialDb);
+      if (!Array.isArray(data.historial)) {
+        throw new Error('El historial no tiene el formato esperado.');
+      }
+
+      this.historial = data.historial
+        .filter((lugar) => typeof lugar === 'string')
+        .map((lugar) => lugar.toLocaleLowerCase())
+        .slice(0, 5);
+    } catch (error) {
+      this.historial = [];
+      console.warn(`No se pudo leer el historial; se iniciará vacío: ${error.message}`);
     }
-    return texto.join(" ");
+  }
+
+  capitalizar(text) {
+    return text.split(' ').map((palabra) => (
+      palabra ? palabra[0].toUpperCase() + palabra.substring(1) : palabra
+    )).join(' ');
   }
 }
 

@@ -18,7 +18,7 @@ module.exports = {
     'no-param-reassign': ['error', { props: false }],
     'no-unused-vars': 'warn', // Advertencia para variables no utilizadas
     'no-undef': 'warn', // Advertencia para variables no definidas
-    'no-console': 'warn',
+    'no-console': 'off',
     'no-await-in-loop': 'off',
     'no-plusplus': 'off',
     'arrow-body-style': 'off',

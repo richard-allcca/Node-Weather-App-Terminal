@@ -1,37 +1,41 @@
-# Aplicación de linea de Comandos
+# Aplicación de clima para terminal
 
-👋 Hello, I'm Thouma.
+CLI interactiva para buscar una ciudad y consultar su clima actual.
 
-- [LinkedIn](https://www.linkedin.com/in/richard-allcca-llano/)
+## Requisitos
 
----
+- Node.js 18 o superior
+- Claves de API de Mapbox y OpenWeather
 
-- Aplicación de consola interactiva con menú y listado dinámico personalizado
-- Inquirer para la interacción con el usuario
-- consumo de Api para las coordenadas de la ciudad elegida
-- consumo de Api para el clima
+## Configuración
 
-## Dependencias
+Instala las dependencias y crea un archivo `.env` en la raíz con estas variables:
 
-    npm i axios
-    npm i colors
-    npm i dotenv
-    npm i inquirer
+```env
+MAPBOX_KEY=tu_clave_de_mapbox
+OPENWEATHER_KEY=tu_clave_de_openweather
+```
 
-## vista previa
+Puedes partir de `.env.example`. No compartas ni subas las claves reales.
 
----
+## Uso
 
-<img align="center" alt="img" src="./assets/menu-app.jpeg" width="150%" />
+```sh
+npm ci
+npm start
+```
 
----
+El historial guarda hasta cinco ciudades en `db/database.json`.
 
-<img align="center" alt="img" src="./assets/selecciona-opcion.jpeg" width="150%" />
+## Comprobaciones
 
----
+```sh
+npm test
+npm run lint
+```
 
-<img align="center" alt="img" src="./assets/respuesta-api.jpeg" width="150%" />
+## Capturas
 
-## Tema de VS code
-
-Winter is Coming (dark black)
+![Menú de la aplicación](./assets/menu-app.jpeg)
+![Selección de ciudad](./assets/selecciona-opcion.jpeg)
+![Respuesta del clima](./assets/respuesta-api.jpeg)

@@ -3,7 +3,6 @@ package-lock.json
 .git
 database/
 seeders/
-models/
 migrations/
 .github/
 .husky/

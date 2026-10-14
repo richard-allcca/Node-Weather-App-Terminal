@@ -1,5 +1,3 @@
-/* eslint-disable no-await-in-loop */
-/* eslint-disable no-case-declarations */
 require('dotenv').config();
 
 const {
@@ -20,46 +18,52 @@ const main = async () => {
     opt = await inquirerMenu();
 
     switch (opt) {
-      case 1:
-        // Mostrar msj
-        const lugarSearch = await leerInput('Ciudad');
+      case 1: {
+        try {
+          const busqueda = await leerInput('Ciudad');
+          const lugares = await search.ciudad(busqueda);
 
-        // Buscar lugar
-        const lugarResp = await search.ciudad(lugarSearch);
+          if (!lugares.length) {
+            console.log('No se encontraron ciudades.'.yellow);
+            break;
+          }
 
-        // obtener id de selección
-        const id = await listaLugares(lugarResp);
-        if (id === '0') return;
+          const id = await listaLugares(lugares);
+          if (id === '0') break;
 
-        // Seleccionar lugar por id
-        const lugarSelect = lugarResp.find((l) => l.id === id);
+          const lugar = lugares.find((resultado) => resultado.id === id);
+          if (!lugar) {
+            console.log('La ciudad seleccionada ya no está disponible.'.yellow);
+            break;
+          }
 
-        // agregar al historial
-        search.agregarHistorial(lugarSelect.nombre);
-        search.guardarDb();
+          const clima = await search.lugarClima(lugar.lat, lugar.lng);
+          console.log('\n Información de la ciudad\n'.green);
+          console.log('Ciudad:', lugar.nombre.green);
+          console.log('Lat:', lugar.lat);
+          console.log('Long:', lugar.lng);
+          console.log('Temperatura:', clima.temp);
+          console.log('Mínima:', clima.min);
+          console.log('Máxima:', clima.max);
+          console.log('Está con:', clima.desc.green);
 
-        // Obtener Clima
-        const clima = await search.lugarClima(
-          lugarSelect.lat,
-          lugarSelect.lng,
-        );
-        // console.log(clima);
-        const {
-          desc, min, max, temp,
-        } = clima;
-
-        // Mostrar resultado
-        console.log('\n Información de la ciudad\n'.green);
-        console.log('Ciudad:', lugarSelect.nombre.green);
-        console.log('Lat:', lugarSelect.lat);
-        console.log('Long:', lugarSelect.lng);
-        console.log('Temperatura:', temp);
-        console.log('Minima:', min);
-        console.log('Maxima:', max);
-        console.log('Esta con:', desc.green);
-
+          search.agregarHistorial(lugar.nombre);
+          try {
+            search.guardarDb();
+          } catch (error) {
+            console.log(`No se pudo guardar el historial: ${error.message}`.red);
+          }
+        } catch (error) {
+          console.log(`\n${error.message}`.red);
+        }
         break;
+      }
       case 2:
+        if (!search.historial.length) {
+          console.log('Todavía no hay ciudades en el historial.'.yellow);
+          break;
+        }
+
         search.historialCapitalizado.forEach((lugar, i) => {
           const idx = `${i + 1}`.green;
 
@@ -75,4 +79,7 @@ const main = async () => {
   } while (opt !== 0);
 };
 
-main();
+main().catch((error) => {
+  console.error(`No se pudo iniciar la aplicación: ${error.message}`.red);
+  process.exitCode = 1;
+});

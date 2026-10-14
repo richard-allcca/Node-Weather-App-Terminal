@@ -46,7 +46,7 @@ const leerInput = async (message) => {
       name: 'msj',
       message,
       validate(value) {
-        if (value.length === 0) return 'Por favor ingresa un valor';
+        if (value.trim().length === 0) return 'Por favor ingresa un valor';
         return true;
       },
     },
@@ -73,6 +73,8 @@ const pausa = async () => {
 // ? control de respuesta
 // ===============================
 const listaLugares = async (lugares = []) => {
+  if (!lugares.length) return '0';
+
   // lista de lugares a seleccionar
   const choices = lugares.map((lugar, i) => {
     const idx = `${i + 1}.`.green;
